@@ -1,13 +1,12 @@
 __author__ = 'Administrator'
 import math
 import datetime
+import math
 import scipy.io as sio
-import scipy as sc
-import numpy as np
-import numpy.linalg as npli
 
 import scipy.sparse as ssp
-
+from numpy import *
+from scipy import *
 from scipy.sparse import linalg
 
 
@@ -18,7 +17,7 @@ def SSOR(filename):
     A = ssp.csr_matrix(sio.mmread(filename))
     print(fileinfo.__str__())
 
-    b = np.random.rand(A.shape[0])
+    b = random.rand(A.shape[0])
 
 
 
@@ -31,10 +30,6 @@ def SSOR(filename):
     print("the directing time cost is %f" % ((endtime_d - starttime).microseconds/1000))
     print("the iterations is %d" % info_direct)
 
-
-
-
-    D = (A.diagonal())
 
     D = ssp.diags(A.diagonal(), 0)
 
@@ -50,14 +45,18 @@ def SSOR(filename):
     L = ssp.tril(A)
 
 
-    D_inv = ssp.csr_matrix(npli.inv(D_like.toarray()))
+    D_inv = D_like
+    for i in range(0, len(D_inv.data)):
+        D_inv.data[i] = 1/D_inv.data[i]
     # print("===================D_inv")
     # print(D_inv)
 
     tmp = D_inv*L
 
 
-    D_inv2 = ssp.csr_matrix(D_inv.toarray()**0.5)
+    D_inv2 = D_inv
+    for i in range(0, len(D_inv.data)):
+        D_inv2.data[i] **= 0.5
 
 
     # one
@@ -72,21 +71,19 @@ def SSOR(filename):
 
     a = 0.5
 
-
-    A_2 = A.toarray()
-    M_2 = M.toarray()
-
     print("when a=%f," % a)
-    for i in range(0, A_2.shape[0]):
-        maxA = abs(A_2[i][0])
-        for j in range(0, A_2.shape[0]):
-            if abs(A_2[i][j]) > maxA:
-                maxA = abs(A_2[i][j])
+    for row in range(0, len(M.indptr)-1):
+            maxA = abs(A.data[A.indptr[row]])
 
-        if abs(A_2[i][j]) <= (1-a)*maxA:
-            M_2[i][j] = 0
+            for indexA in range(A.indptr[row], A.indptr[row+1]):
+                if abs(A.data[indexA]) > maxA:
+                    maxA = abs(A.data[indexA])
 
-    A_like = A*ssp.csr_matrix(M_2)
+            for indexM in range(M.indptr[row], M.indptr[row+1]):
+                if abs(M.data[indexM]) <= (1-a)*maxA:
+                    M.data[indexM] = 0
+
+    A_like = A*M
 
     x, info = linalg.cg(A_like, b)
 
