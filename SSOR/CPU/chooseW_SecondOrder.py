@@ -1,12 +1,20 @@
 __author__ = 'Administrator'
 import math
 import scipy.io as sio
-import scipy as sc
-import numpy as np
-import numpy.linalg as npli
-import time
+
 import scipy.sparse as ssp
+from numpy import *
 from scipy import *
+from scipy.sparse import linalg
+
+iterations = 0
+
+def report(xk):
+    global iterations
+    iterations += 1
+    if iterations > 10000:
+        print("iteration times over 10000.")
+    # print(iterations)
 
 def SSOR(filename):
 
@@ -14,13 +22,6 @@ def SSOR(filename):
     print("the row is %d" % A.shape[0])
     # print("===================A")
     # print(A)
-
-
-    # cond_A = npli.cond(A.toarray())
-    # print("the cond of A is %3f " % cond_A)
-
-
-    D = (A.diagonal())
 
     D = ssp.diags(A.diagonal(), 0)
 
@@ -31,7 +32,6 @@ def SSOR(filename):
 
     w = 0.5
     while(w <= 1.5):
-        spectral = 0
 
         print("the w is %f" % w)
 
@@ -42,9 +42,9 @@ def SSOR(filename):
         # print("===================L")
         # print(L)
 
-
-
-        D_inv = ssp.csr_matrix(npli.inv(D_like.toarray()))
+        D_inv = D_like
+        for i in range(0, len(D_inv.data)):
+            D_inv.data[i] = 1/D_inv.data[i]
         # print("===================D_inv")
         # print(D_inv)
 
@@ -53,14 +53,10 @@ def SSOR(filename):
         # print("===================tmp")
         # print(tmp)
 
-        spectral = max(abs(sc.linalg.eigvals(tmp.toarray())))
-        # spectral = sc.linalg.eigvals(tmp.toarray())
 
-        print("the spectral is %3f" % spectral)
-        # print("===================D_inv")
-        # print(D_inv)
-
-        D_inv2 = ssp.csr_matrix(D_inv.toarray()**0.5)
+        D_inv2 = D_inv
+        for i in range(0, len(D_inv.data)):
+            D_inv2.data[i] **= 0.5
 
         # print("===================D_inv2")
         # print(D_inv2)
@@ -76,47 +72,48 @@ def SSOR(filename):
         # print("===================M")
         # print(M)
 
-        b = np.random.rand(A.shape[0])
+        b = random.rand(A.shape[0])
 
         #need to change a #######################&&&&&&&&&
         a = 0.5
 
-        A_2 = A.toarray()
-        K_2 = K.toarray()
 
         print("when a=%f," % a)
-        for i in range(0, A_2.shape[0]):
-            maxA = abs(A_2[i][0])
-            for j in range(0, A_2.shape[0]):
-                if abs(A_2[i][j]) > maxA:
-                    maxA = abs(A_2[i][j])
 
-            if abs(A_2[i][j]) <= (1-a)*maxA:
-                K_2[i][j] = 0
+        for row in range(0, len(K.indptr)-1):
+            maxA = abs(A.data[A.indptr[row]])
 
-        K = ssp.csr_matrix(K_2)
+            for indexA in range(A.indptr[row], A.indptr[row+1]):
+                if abs(A.data[indexA]) > maxA:
+                    maxA = abs(A.data[indexA])
+
+            for indexM in range(A.indptr[row], A.indptr[row+1]):
+                if abs(A.data[indexM]) <= (1-a)*maxA:
+                    K.data[indexM] = 0
+
+        print("finish calculating K.")
 
         M = K.T*K
 
-        M_2 = M.toarray()
 
+        for row in range(0, len(K.indptr)-1):
+            for indexM in range(K.indptr[row], K.indptr[row+1]):
+                if K.data[indexM] == 0:
+                    M.data[indexM] = 0
 
-        for i in range(0, A_2.shape[0]):
-            for j in range(0, A_2.shape[0]):
-                if K_2[i][j] == 0:
-                    M_2[i][j] = 0
+        print("finish calculating M.")
 
-        A_like = A*ssp.csr_matrix(M_2)
+        A_like = A*M
 
-        x, info = linalg.cg(A_like, b)
+        print("finish calculating A_like.")
 
-        print("the iteration times of A*M is %d " % info)
+        global iterations
+
+        x, info = linalg.bicgstab(A_like, b, callback=report)
+
+        print("the iteration times of A_like is %d " % iterations)
 
         w += 0.1
-
-
-        # print("===================A*M")
-        # print(A_like)
 
 
 

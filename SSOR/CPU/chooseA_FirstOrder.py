@@ -1,13 +1,24 @@
 __author__ = 'Administrator'
 import math
 import scipy.io as sio
-import numpy as np
+
 import scipy.sparse as ssp
-import scipy
+from numpy import *
 from scipy import *
+from scipy.sparse import linalg
+
+iterations = 0
+
+def report(xk):
+    global iterations
+    iterations += 1
+    if iterations > 10000:
+        print("iteration times over 10000.")
+    # print(iterations)
 
 def SSOR(filename):
 
+    print(filename)
     A = ssp.csr_matrix(sio.mmread(filename))
     print("the row is %d" % A.shape[0])
     # print("===================A")
@@ -39,11 +50,13 @@ def SSOR(filename):
     # print("===================L")
     # print(L)
 
-    D_inv = D_like.inv()
+    D_inv = D_like
+    for i in range(0, len(D_inv.data)):
+        D_inv.data[i] = 1/D_inv.data[i]
 
     # D_inv = ssp.csr_matrix(npli.inv(D_like.toarray()))
     # print("===================D_inv")
-    # print(D_inv)
+    # print(D_inv.data)
 
     tmp = D_inv*L
 
@@ -58,7 +71,9 @@ def SSOR(filename):
     # # print(D_inv)
 
 
-    D_inv2 = D_inv**0.5
+    D_inv2 = D_inv
+    for i in range(0, len(D_inv.data)):
+        D_inv2.data[i] **= 0.5
 
     # D_inv2 = ssp.csr_matrix(D_inv.toarray()**0.5)
 
@@ -76,33 +91,54 @@ def SSOR(filename):
 
     K_T = K.T
 
-    M = K_T*K
     # print("===================M")
     # print(M)
 
-    b = np.random.rand(A.shape[0])
+    N = A.shape[0]
 
-    a = 0.5
-    while(a<=1):
+    # b = random.randint(0, N-1, size=N)
+    b = [0.1]*A.shape[0]
 
-        A_2 = A.toarray()
-        M_2 = M.toarray()
+    a = 1.0
+    while a == 1.0:
 
         print("when a=%f," % a)
-        for i in range(0, A_2.shape[0]):
-            maxA = abs(A_2[i][0])
-            for j in range(0, A_2.shape[0]):
-                if abs(A_2[i][j]) > maxA:
-                    maxA = abs(A_2[i][j])
 
-            if abs(A_2[i][j]) <= (1-a)*maxA:
-                M_2[i][j] = 0
+        # print("row number is %d," % len(M.indptr))
 
-        A_like = A*ssp.csr_matrix(M_2)
+        M = K_T*K
 
-        x, info = linalg.cg(A_like, b)
+        for row in range(0, len(M.indptr)-1):
+            maxA = abs(A.data[A.indptr[row]])
 
-        print("the iteration times of A*M is %d " % info)
+            for indexA in range(A.indptr[row], A.indptr[row+1]):
+                if abs(A.data[indexA]) > maxA:
+                    maxA = abs(A.data[indexA])
+
+            for indexM in range(A.indptr[row], A.indptr[row+1]):
+                if abs(A.data[indexM]) <= (1-a)*maxA:
+                    M.data[indexM] = 0
+
+        print("finish calculating M.")
+
+        A_like = A*M
+
+        print("finish calculating A_like.")
+
+        # xA, infoA = linalg.bicgstab(A, b, callback=report)
+
+        global iterations
+
+        # print("the iteration times of A is %d " % iterations)
+        #
+        # print("==========================XA")
+        # print(xA)
+        #
+        # iterations = 0
+
+        x, info = linalg.bicgstab(A_like, b, callback=report)
+
+        print("the iteration times of A_like is %d " % iterations)
 
         a += 0.1
 
@@ -112,14 +148,11 @@ def SSOR(filename):
 
 
 
-print("input file name:\n")
+print("input file name:")
 
-SSOR("apache2.mtx")
-# SSOR("685_bus.mtx")
-# SSOR("plbuckle.mtx")
-# SSOR("bcsstm26.mtx")
-# SSOR("plat1919.mtx")
-# SSOR("Trefethen_700.mtx")
-# SSOR("bcsstk10.mtx")
-# SSOR("msc00726.mtx")
-# SSOR("plbuckle.mtx")
+
+# SSOR("apache2.mtx")
+# SSOR("thermal2.mtx")
+# SSOR("ecology2.mtx")
+# SSOR("parabolic_fem.mtx")
+SSOR("G3_circuit.mtx")
